@@ -1,0 +1,48 @@
+name: Node CI/CD
+
+on:
+  push:
+    branches:
+      - dev      # CI cuando haces push en dev
+      - main     # CI/CD cuando hay merge a main
+  pull_request:
+    branches:
+      - main     # CI en PR hacia main
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Instalar dependencias
+        run: npm install
+
+      - name: Ejecutar tests
+        run: npm test
+
+  docker-deploy:
+    if: github.ref == 'refs/heads/main'   # Solo en main
+    needs: build-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Construir imagen Docker
+        run: docker build -t hunglespro/node-ci-cd:${{ github.sha }} .
+
+      - name: Login a DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Subir imagen
+        run: docker push hunglespro/node-ci-cd:${{ github.sha }}
