@@ -4,10 +4,10 @@ on:
   push:
     branches:
       - dev      # CI cuando haces push en dev
-      - main     # CI/CD cuando hay merge a main
+      - master     # CI/CD cuando hay merge a main
   pull_request:
     branches:
-      - main     # CI en PR hacia main
+      - master     # CI en PR hacia main
 
 jobs:
   build-test:
@@ -28,7 +28,7 @@ jobs:
         run: npm test
 
   docker-deploy:
-    if: github.ref == 'refs/heads/main'   # Solo en main
+    if: github.ref == 'refs/heads/master'   # Solo en master
     needs: build-test
     runs-on: ubuntu-latest
     steps:
