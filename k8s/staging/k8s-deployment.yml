@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-ci-cd-deploy
+  labels:
+    app: node-ci-cd
+spec:
+  replicas: 2   # número de pods
+  selector:
+    matchLabels:
+      app: node-ci-cd
+  template:
+    metadata:
+      labels:
+        app: node-ci-cd
+    spec:
+      containers:
+        - name: node-ci-cd
+          image: hunglespro/node-ci-cd:fdc3ba6f012fe5a75ea5083530d281d60a705498
+          ports:
+            - containerPort: 5000
