@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: node-ci-cd-service
+spec:
+  selector:
+    app: node-ci-cd
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 3000
+  type: NodePort   # para acceder desde fuera de Minikube

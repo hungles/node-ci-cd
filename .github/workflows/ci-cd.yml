@@ -3,14 +3,16 @@ name: Node CI/CD
 on:
   push:
     branches:
-      - dev      # CI cuando haces push en dev
-      - master     # CI/CD cuando hay merge a main
+      - dev
+      - master
+      - staging
   pull_request:
     branches:
-      - master     # CI en PR hacia main
+      - master
+      - staging
 
 jobs:
-  build-test:
+  build_and_unit_test:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout código
@@ -27,16 +29,16 @@ jobs:
       - name: Ejecutar tests
         run: npm test
 
-  docker-deploy:
-    if: github.ref == 'refs/heads/master'   # Solo en master
-    needs: build-test
+  dockerhub_prod_deploy:
+    if: github.ref == 'refs/heads/master' #Aplicar solo en master
+    needs: build_and_unit_test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout código
         uses: actions/checkout@v3
 
       - name: Construir imagen Docker
-        run: docker build -t hunglespro/node-ci-cd:${{ github.sha }} .
+        run: docker build -t hunglespro/node-ci-cd:prod-${{ github.sha }} .
 
       - name: Login a DockerHub
         uses: docker/login-action@v2
@@ -45,4 +47,63 @@ jobs:
           password: ${{ secrets.DOCKER_PASS }}
 
       - name: Subir imagen
-        run: docker push hunglespro/node-ci-cd:${{ github.sha }}
+        run: docker push hunglespro/node-ci-cd:prod-${{ github.sha }}
+
+  dockerhub_deploy_staging:
+    if: github.ref == 'refs/heads/staging' # Aplicar solo en staging
+    needs: build_and_unit_test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Construir imagen Docker
+        run: docker build -t hunglespro/node-ci-cd:staging-${{ github.sha }} .
+
+      - name: Login en DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USER }}
+          password: ${{ secrets.DOCKER_PASS }}
+
+      - name: Subir imagen
+        run: docker push hunglespro/node-ci-cd:staging-${{ github.sha }}
+
+  deploy-staging:
+    if: github.ref == 'refs/heads/staging' # Aplicar solo en staging
+    needs: dockerhub_deploy_staging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Configurar kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.28.0'
+
+      - name: Crear kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG_DATA }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+        
+      - name: Validar cluster
+        run: kubectl get nodes
+
+      - name: Aplicar manifests
+        run: |
+          kubectl apply -f k8s/staging/k8s-deployment.yml
+          kubectl apply -f k8s/staging/k8s-service.yml
+      
+      - name: Actualizar imagen en manifiesto
+        run: |
+          kubectl set image deployment/python-ci-cd-deploy python-ci-cd=hunglespro/node-ci-cd:staging-${{ github.sha }}
+
+      - name: Dormir para esperar despliegue
+        run: sleep 60
+
+      - name: Ver pods
+        run: kubectl get pods
+
+      - name: Ver servicios
+        run: kubectl get services

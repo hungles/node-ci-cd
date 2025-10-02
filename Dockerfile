@@ -13,7 +13,7 @@ RUN npm install --production
 # Copia el resto de los archivos de la aplicación
 COPY . .
 
-# Expone el puerto (ajusta si tu app usa otro)
+# Expone el puerto 3000
 EXPOSE 3000
 
 # Comando para iniciar la aplicación
